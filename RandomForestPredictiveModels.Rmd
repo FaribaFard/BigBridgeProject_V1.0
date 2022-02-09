@@ -1,0 +1,232 @@
+#BIG BRIDG DATA PREPARATION AND ANALYSIS
+
+# 1- Required Libraries
+```{r libraries}
+# libraries
+library(ranger)
+
+```
+# 2- Importing the Big Bridge Data (BBD)
+```{r}
+# Collect the BBD form the digital repository "https://github.com/FaribaFard/Big-Bridge-Project/blob/main/BigBridgeData.zip" and store it in a directory on your hard drive.
+# The following directory is used to store the BBD file. Convert the csv file into US.
+US <- read.csv("C:/Users/fs0163/Documents/FaribaUNT/PhDSemester7/Dissertation/Paper/Publishing in ASCE Journals/BigBridgeData.csv")
+
+```
+# 3- Random Forest Classification
+## 3-1 Binary Classification
+```{r}
+# Convert the dependent variable (Deck_Yes_No) into factor that is suitable for classification purposes. 
+US$Deck_Yes_No <- as.factor(US$Deck_Yes_No)
+
+# Impute missing values using missRanger
+US_Imputed <- missRanger::missRanger(US, num.trees = 10)
+
+# When the OOB error rate becomes stabilize, it can be used as a good estimate for the generalization error.
+nt_binary <- seq(1, 201, 100)
+oob_binary <- vector("numeric", length(nt_binary))
+
+for(i in 1:length(nt_binary)){
+  rf_binary <- ranger(Deck_Yes_No ~ Age+
+                ADT+
+                ADTT+
+                Lanes_On+
+                Number_Spans_Main+
+                Length_Max_Span+
+                Curb_Width+
+                Deck_Area+
+                Operating_Rating+ 
+                Highway_District+
+                Design_Load+
+                Reconstructed+
+                Main_Material+
+                Main_Design+
+                Spans_Material+
+                Spans_Design+
+                Deck_Geometry+
+                Deck_Type+
+                Wearing_Surface+
+                Precipitation+
+                Temp_Min+
+                Temp_Max+
+                Days_MinLT_32F+
+                Days_MaxGT_70F+
+                Avg_Wind_Speed+
+                Peak_Wind_Speed+
+                Frequency_Shake_GT4+
+                Max_Shake,
+                data = US_Imputed,
+                num.trees = nt_binary[i],
+                write.forest = FALSE)
+                oob_binary[i] <- rf_binary$prediction.error
+                }
+
+# Plot the out-of-bag error over different number of trees. 
+par(mfrow = c(1, 1))
+par(mar=c(5,3,1,1)+5)   # extra large bottom margin
+plot(x = nt_binary, y = oob_binary, col = "red", type = "l",xlab= "Number of trees", ylab= "Out-of-bag error", cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5,lwd=3.0)
+
+
+# According to the stabilized OOB error, the Random forest was trained using 200 trees for binary classification.
+rf_US_TwoClass_Eng <- ranger(Deck_Yes_No ~ Age+
+                ADT+
+                ADTT+
+                Lanes_On+
+                Number_Spans_Main+
+                Length_Max_Span+
+                Curb_Width+
+                Deck_Area+
+                Operating_Rating+ 
+                Highway_District+
+                Design_Load+
+                Reconstructed+
+                Main_Material+
+                Main_Design+
+                Spans_Material+
+                Spans_Design+
+                Deck_Geometry+
+                Deck_Type+
+                Wearing_Surface+
+                Precipitation+
+                Temp_Min+
+                Temp_Max+
+                Days_MinLT_32F+
+                Days_MaxGT_70F+
+                Avg_Wind_Speed+
+                Peak_Wind_Speed+
+                Frequency_Shake_GT4+
+                Max_Shake,
+                data = US_Imputed,
+                importance = "permutation",
+                num.trees =200
+                )
+
+# Result of the binary classification
+rf_US_TwoClass_Eng
+
+
+# Variable Importance plot
+par(mfrow = c(1, 1))
+par(mar=c(5,3,1,1)+6)   # extra large bottom margin
+barplot(sort(rf_US_TwoClass_Eng$variable.importance),horiz = TRUE,las=1,cex.names =0.8,cex.axis = 1,xlim = c(0, 0.27))
+
+
+# Confusion matrix on OOB data
+rf_US_TwoClass_Eng$confusion.matrix
+
+# Prediction error on OOB data
+rf_US_TwoClass_Eng$prediction.error
+
+
+```
+## 3-2 Multiclass Classification
+```{r}
+
+# Convert the dependent variable (Deck_Yes_10Conditions) into factor that is suitable for classification purposes. 
+US$Deck_Yes_10Conditions <- as.factor(US$Deck_Yes_10Conditions)
+
+
+# Random Forest to Classify bridges in SEVEN classes (from 3 to 9) Based on Engineering judgment variables.
+# Therefore bridges without deck were removed. In addtion bridges with decks and conditions of 0, 1, and 2 were removed.
+US_7Class <- US[!US$Deck_Yes_10Conditions == -1 &!US$Deck_Yes_10Conditions == 0 &!US$Deck_Yes_10Conditions ==1 &!US$Deck_Yes_10Conditions == 2 ,]
+
+
+# Impute missing values using missRanger
+US_7ClassImputed <- missRanger::missRanger(US_7Class, num.trees = 10)
+unique(US_7ClassImputed$Deck_Yes_10Conditions)
+
+# When the OOB error rate becomes stabilize, it can be used as a good estimate for the generalization error.
+nt_multi <- seq(1, 301, 100)
+oob_multi <- vector("numeric", length(nt_multi))
+
+for(i in 1:length(nt_multi)){
+  rf_multi <- ranger(Deck_Yes_10Conditions ~ Age+
+                ADT+
+                ADTT+
+                Lanes_On+
+                Number_Spans_Main+
+                Length_Max_Span+
+                Curb_Width+
+                Deck_Area+
+                Operating_Rating+ 
+                Highway_District+
+                Design_Load+
+                Reconstructed+
+                Main_Material+
+                Main_Design+
+                Spans_Material+
+                Spans_Design+
+                Deck_Geometry+
+                Deck_Type+
+                Wearing_Surface+
+                Precipitation+
+                Temp_Min+
+                Temp_Max+
+                Days_MinLT_32F+
+                Days_MaxGT_70F+
+                Avg_Wind_Speed+
+                Peak_Wind_Speed+
+                Frequency_Shake_GT4+
+                Max_Shake,
+                data = US_7ClassImputed,
+                num.trees = nt_multi[i],
+                write.forest = FALSE)
+                oob_multi[i] <- rf_multi$prediction.error
+                }
+
+# Plot the out-of-bag error over different number of trees. 
+par(mfrow = c(1, 1))
+par(mar=c(5,3,1,1)+5)   # extra large bottom margin
+plot(x = nt_multi, y = oob_multi, col = "red", type = "l",xlab= "Number of trees", ylab= "Out-of-bag error", cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5,lwd=3.0)
+
+
+# According to the stabilized OOB error, the Random forest was trained using 300 trees for multiclass classification.
+rf_US_7Class_Eng <- ranger(Deck_Yes_10Conditions ~ Age+
+                ADT+
+                ADTT+
+                Lanes_On+
+                Number_Spans_Main+
+                Length_Max_Span+
+                Curb_Width+
+                Deck_Area+
+                Operating_Rating+ 
+                Highway_District+
+                Design_Load+
+                Reconstructed+
+                Main_Material+
+                Main_Design+
+                Spans_Material+
+                Spans_Design+
+                Deck_Geometry+
+                Deck_Type+
+                Wearing_Surface+
+                Precipitation+
+                Temp_Min+
+                Temp_Max+
+                Days_MinLT_32F+
+                Days_MaxGT_70F+
+                Avg_Wind_Speed+
+                Peak_Wind_Speed+
+                Frequency_Shake_GT4+
+                Max_Shake,
+                data = US_7ClassImputed,
+                importance = "permutation",
+                num.trees =300
+                )
+
+
+# Result of the multiclass classification
+rf_US_7Class_Eng
+
+# Variable Importance plot
+par(mfrow = c(1, 1))
+par(mar=c(5,3,1,1)+6)   # extra large bottom margin
+barplot(sort(rf_US_7Class_Eng$variable.importance),horiz = TRUE,las=1,cex.names =0.8,cex.axis = 1,xlim = c(0, 0.12))
+
+
+# Confusion matrix on OOB data
+rf_US_7Class_Eng$confusion.matrix
+
+# Prediction error on OOB data 
+rf_US_7Class_Eng$prediction.error
+
